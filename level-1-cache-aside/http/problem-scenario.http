@@ -1,0 +1,16 @@
+@baseUrl = http://localhost:8101
+
+### 1) Cache MISS — first read (DB query expected)
+GET {{baseUrl}}/api/products/1
+
+### 2) Cache HIT — same product, no DB query
+GET {{baseUrl}}/api/products/1
+
+### 3) Evict cache (simulates TTL expiry)
+DELETE {{baseUrl}}/api/admin/cache/products/1
+
+### 4) Cache MISS again after eviction
+GET {{baseUrl}}/api/products/1
+
+### 5) Another product — cold read
+GET {{baseUrl}}/api/products/42

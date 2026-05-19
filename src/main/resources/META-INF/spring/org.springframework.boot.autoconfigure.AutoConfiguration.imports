@@ -1,0 +1,2 @@
+com.lab.distributed.config.LabAutoConfiguration
+com.lab.distributed.config.LabInfrastructureConfig
