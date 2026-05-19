@@ -1,0 +1,37 @@
+server:
+  port: 8102
+
+spring:
+  application:
+    name: level-2-cache-invalidation
+  output:
+    ansi:
+      enabled: always
+  datasource:
+    url: jdbc:postgresql://localhost:5434/lab
+    username: lab
+    password: lab
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+  data:
+    redis:
+      host: localhost
+      port: 6381
+  cache:
+    type: redis
+    redis:
+      time-to-live: 10m
+      key-prefix: "level2:product:"
+      cache-null-values: false
+
+logging:
+  level:
+    root: INFO
+    lab.cache: INFO
+    lab.db: INFO
+    org.springframework.cache.interceptor: TRACE
+  pattern:
+    console: "%d{HH:mm:ss.SSS} %clr(%-5level){faint} %clr(%logger{20}){cyan} %msg%n"

@@ -2,42 +2,74 @@
 
 Port: **8102** · Redis: **6381** · PostgreSQL: **5434**
 
+```
+level-2-cache-invalidation/
+├── java/       ← Spring Boot (@Cacheable, kasıtlı invalidation yok)
+├── python/     ← seed script
+└── docker-compose.yml
+```
+
 ---
 
 ## 1. Problemin kendisi
 
-DB’de veri güncellenir ama **cache invalidate edilmez**. Sonraki okumalar eski (stale) değeri döner.
+DB'de veri güncellenir ama **cache invalidate edilmez**. Sonraki okumalar eski (stale) değeri döner.
 
-Kısa özet: Write DB’ye gider, read cache’ten — **consistency kopar**.
-
----
-
-## 2. Gözlemlenmesi gereken problem
-
-| Ne izle | Beklenen davranış |
-|---------|-------------------|
-| Log | `[STALE CACHE DETECTED]` veya hit sonrası DB ile uyumsuzluk |
-| Log | Update sonrası hâlâ `[CACHE HIT]` (eski payload) |
-| API | `PUT` fiyat değiştirir, `GET` eski fiyat |
-| Risk | Yanlış fiyat/stok → finansal kayıp |
-
-Update path cache’e dokunmaz; read path cache hit alır.
+`PUT` → sadece PostgreSQL · `GET` → hâlâ Redis'ten **cache hit**.
 
 ---
 
-## 3. Nasıl kod içerisinde reproduce edilir
+## 2. Gözlemlenmesi gereken loglar
 
-| Adım | Nerede | Ne yapar |
-|------|--------|----------|
-| 1 | `GET /api/products/{id}` | Ürün cache’e yazılır |
-| 2 | `PUT /api/products/{id}` | Sadece JPA `save` — **cache delete yok** |
-| 3 | `GET` tekrar | Stale değer, `[CACHE HIT]` |
-| 4 | `ProductService.update` | Bilinçli olarak `labCache.delete` çağrılmaz |
+Loglar `application.yml` üzerinden (`lab.cache`, `lab.db`, Spring cache TRACE):
 
-**HTTP:** `http/stale-cache.http`  
-**Load test:** `load-test-scripts/level-2/stale_read_test.py`
+| Log | Ne zaman |
+|-----|----------|
+| `[DB QUERY EXECUTED]` | İlk GET (cache miss) |
+| `[CACHE NOT INVALIDATED]` | PUT sonrası |
+| `[STALE CACHE DETECTED]` | PUT sonrası ilk GET (cache hit, eski fiyat) |
+| Spring TRACE | `CacheInterceptor` — cache hit/miss detayı |
+
+**Beklenen API akışı (product id=1, fiyat 100 → 1.99):**
+
+1. `GET` → `source: DATABASE`, fiyat seed değeri  
+2. `GET` → `source: CACHE`, aynı fiyat  
+3. `PUT {"price": 1.99}` → `source: DATABASE`, fiyat **1.99**  
+4. `GET` → `source: CACHE`, fiyat hâlâ **eski** (stale)
+
+---
+
+## 3. Reproduce
 
 ```bash
-# Örnek akış (level hazır olunca)
-# GET → PUT (fiyat) → GET (eski fiyat döner)
+cd level-2-cache-invalidation
+docker compose up -d
+
+cd python && python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python seed_products.py --count 100 --truncate
+
+cd ../java && mvn spring-boot:run
 ```
+
+```bash
+curl -s http://localhost:8102/api/products/1 | jq .data.price,.data.source
+curl -s http://localhost:8102/api/products/1 | jq .data.price,.data.source
+curl -s -X PUT http://localhost:8102/api/products/1 \
+  -H 'Content-Type: application/json' -d '{"price": 1.99}' | jq .data.price
+curl -s http://localhost:8102/api/products/1 | jq .data.price,.data.source
+```
+
+HTTP dosyası: [http/stale-cache.http](http/stale-cache.http)
+
+### Kod
+
+| Sınıf | Rol |
+|-------|-----|
+| `ProductCacheLoader` | `@Cacheable` okuma |
+| `ProductService.updatePrice` | JPA save — **`@CacheEvict` yok** (kasıtlı) |
+
+Redis key örneği: `redis-cli -p 6381 KEYS 'level2:product:*'`
+
+Pattern dokümantasyonu: [cache-invalidation.md](cache-invalidation.md)  
+Detaylı problem analizi: [problems-explain.md](problems-explain.md)

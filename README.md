@@ -32,8 +32,9 @@ mvn clean install -DskipTests
 | Modül | Konum | Durum |
 |-------|--------|--------|
 | **cache-problems** (base) | repo kökü (`src/`) | ✅ |
-| `level-1-cache-aside` | `level-1-cache-aside/` | ✅ |
-| `level-2` … `level-8` | `level-N-*/` | 🔜 |
+| `level-1-cache-aside` | `level-1-cache-aside/java` | ✅ |
+| `level-2-cache-invalidation` | `level-2-cache-invalidation/java` | ✅ |
+| `level-3` … `level-8` | `level-N-*/` | 🔜 |
 
 Detaylı mimari: [ARCHITECTURE.md](ARCHITECTURE.md)
 

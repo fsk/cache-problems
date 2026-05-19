@@ -76,6 +76,7 @@ Log formatı: `grep` ile problem repro için tasarlanmıştır.
 
 1. ✅ cache-problems (kök base)
 2. ✅ level-1-cache-aside
+3. ✅ level-2-cache-invalidation
 3. level-2 … level-8 (sırayla)
 4. load-test-scripts (level ile birlikte)
 5. (Gelecek phase) Observability: Prometheus, Grafana, OTel
