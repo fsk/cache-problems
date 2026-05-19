@@ -2,11 +2,21 @@
 
 Port: **8101** · Redis: **6380** · PostgreSQL: **5433**
 
+```
+level-1-cache-aside/
+├── java/          ← Spring Boot uygulaması (@EnableCaching + renkli loglar)
+├── python/        ← PostgreSQL seed script
+├── docker-compose.yml
+└── docs / http    ← cache-aside-pattern.md, problem-scenario.http
+```
+
 ---
 
 ## 1. Problemin kendisi
 
-**Cache Aside**: okuma önce Redis → yoksa PostgreSQL → sonuç cache’e yazılır.
+**Cache Aside**: okuma önce Redis → yoksa PostgreSQL → sonuç cache'e yazılır.
+
+Spring **`@Cacheable`** ile uygulanır; `[CACHE HIT/MISS/PUT/EVICT]` logları `LoggingCache` üzerinden renkli basılır.
 
 Bu modül kasıtlı olarak sadece saf cache-aside içerir. Stampede koruması, cache warming veya invalidation **yoktur**.
 
@@ -20,15 +30,15 @@ Bu modül kasıtlı olarak sadece saf cache-aside içerir. Stampede koruması, c
 
 ## 2. Gözlemlenmesi gereken problem
 
-Terminalde uygulama loglarını izle (`mvn spring-boot:run` çıktısı):
+Terminalde uygulama loglarını izle (`mvn spring-boot:run` — `java/` klasöründen):
 
-| Log etiketi | Ne zaman görünür |
-|-------------|------------------|
-| `[CACHE MISS]` | Redis’te key yok |
-| `[DB QUERY EXECUTED]` | Sadece miss sonrası DB çağrısı |
-| `[CACHE PUT]` | DB’den sonra Redis’e yazım |
-| `[CACHE HIT]` | İkinci ve sonraki okumalar |
-| `[CACHE EVICT]` | Admin evict endpoint |
+| Log etiketi | Renk | Ne zaman |
+|-------------|------|----------|
+| `[CACHE MISS]` | sarı | Redis'te key yok |
+| `[DB QUERY EXECUTED]` | magenta | Sadece miss sonrası |
+| `[CACHE PUT]` | mavi | DB'den sonra cache yazımı |
+| `[CACHE HIT]` | yeşil | İkinci ve sonraki okumalar |
+| `[CACHE EVICT]` | kırmızı | Admin evict |
 
 **Beklenen sıra (product id=1):**
 
@@ -37,18 +47,14 @@ Terminalde uygulama loglarını izle (`mvn spring-boot:run` çıktısı):
 3. `DELETE /api/admin/cache/products/1` → EVICT  
 4. `GET /api/products/1` → MISS + DB QUERY tekrar  
 
-`grep` ile filtrele:
-
 ```bash
-# Uygulama loglarında
-grep -E '\[CACHE|\[DB QUERY'
+grep -E '\[CACHE|\[DB QUERY'   # uygulama loglarında
 ```
 
-Redis’te key kontrolü:
+Redis key örneği (`@Cacheable` cache adı `products`):
 
 ```bash
-redis-cli -p 6380 GET "level1:product:1"
-redis-cli -p 6380 TTL "level1:product:1"
+redis-cli -p 6380 KEYS "level1:product:*"
 ```
 
 ---
@@ -62,88 +68,48 @@ cd level-1-cache-aside
 docker compose up -d
 ```
 
-Postgres ve Redis healthy olana kadar bekle (~10 sn).
-
 ### Adım 1 — Veri yükle (Python)
 
 ```bash
-cd level-1-cache-aside
+cd level-1-cache-aside/python
 python3 -m venv .venv && source .venv/bin/activate
-pip install -r scripts/requirements.txt
-python scripts/seed_products.py --count 1000 --truncate
+pip install -r requirements.txt
+python seed_products.py --count 1000 --truncate
 ```
 
-Büyük dataset için:
+### Adım 2 — Uygulamayı başlat (Java)
 
 ```bash
-python scripts/seed_products.py --count 100000 --truncate
-```
-
-### Adım 2 — Uygulamayı başlat
-
-```bash
-# Monorepo kökünden
 cd lab-reactor && mvn clean install -DskipTests
 
-cd ../level-1-cache-aside
+cd ../level-1-cache-aside/java
 mvn spring-boot:run
 ```
 
-### Adım 3 — Senaryoyu çalıştır
+IntelliJ: **`java/`** klasörünü Maven modülü olarak açın, SDK **21**.
 
-**Seçenek A — curl**
+### Adım 3 — Senaryo
 
 ```bash
-# 1) MISS + DB
 curl -s http://localhost:8101/api/products/1 | jq .
-
-# 2) HIT (DB log gelmemeli)
 curl -s http://localhost:8101/api/products/1 | jq .
-
-# 3) Evict (TTL simülasyonu)
 curl -s -X DELETE http://localhost:8101/api/admin/cache/products/1
-
-# 4) MISS + DB tekrar
 curl -s http://localhost:8101/api/products/1 | jq .
 ```
 
-`data.servedFrom` alanı: ilk okuma `DATABASE`, cache’ten `CACHE`.
+`data.servedFrom`: ilk okuma `DATABASE`, cache'ten `CACHE`.
 
-**Seçenek B — HTTP dosyası**
+HTTP dosyası: `http/problem-scenario.http`
 
-IntelliJ / VS Code REST Client ile `http/problem-scenario.http` dosyasını sırayla çalıştır.
-
-### Kodda problem nerede?
+### Kodda nerede?
 
 | Sınıf | Rol |
 |-------|-----|
-| `ProductCacheAsideService` | Cache-aside akışı — miss’te DB |
-| `ProductRedisCache` | `[CACHE HIT/MISS/PUT/EVICT]` logları |
-| `DbQueryLogger` | `[DB QUERY EXECUTED]` — **sadece bu modülde** |
-| `CacheAdminController` | `DELETE /api/admin/cache/products/{id}` |
+| `ProductCacheLoader` | `@Cacheable` — miss'te DB |
+| `ProductService` | `servedFrom` + `@CacheEvict` |
+| `LoggingCache` / `LoggingCacheManager` | Renkli cache logları |
+| `CacheConfig` | `@EnableCaching` + Redis `CacheManager` |
+| `DbQueryLogger` | Renkli `[DB QUERY EXECUTED]` |
 
-```text
-GET /api/products/{id}
-  → ProductCacheAsideService.getById()
-    → ProductRedisCache.get()     → HIT? return
-    → DbQueryLogger.execute()     → MISS: DB
-    → ProductRedisCache.put()     → populate TTL=30s
-```
-
-### TTL ile reproduce (beklemeden)
-
-Manuel evict yerine 30 saniye bekle → `GET` → miss + DB log tekrar görünür.
-
----
-
-## Hızlı komut özeti
-
-```bash
-cd level-1-cache-aside
-docker compose up -d
-pip install -r scripts/requirements.txt
-python scripts/seed_products.py --count 1000 --truncate
-mvn spring-boot:run
-```
-
-Detaylı problem analizi: [problems-explain.md](problems-explain.md)
+Detaylı pattern: [cache-aside-pattern.md](cache-aside-pattern.md)  
+Problem analizi: [problems-explain.md](problems-explain.md)

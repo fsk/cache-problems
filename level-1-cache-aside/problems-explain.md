@@ -30,7 +30,7 @@ Bkz. [README.md](README.md) bölüm 3.
 
 ## 7. Seed script
 
-`python scripts/seed_products.py --count 1000`
+`cd python && python seed_products.py --count 1000`
 
 ## 8. Beklenen kötü davranış
 

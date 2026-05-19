@@ -1,7 +1,7 @@
 package com.lab.level1.controller;
 
 import com.lab.level1.dto.ApiResponse;
-import com.lab.level1.service.ProductCacheAsideService;
+import com.lab.level1.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class CacheAdminController {
 
-    private final ProductCacheAsideService productService;
+    private final ProductService productService;
 
     @DeleteMapping("/products/{id}")
     public ResponseEntity<ApiResponse<String>> evictProduct(@PathVariable long id) {

@@ -23,7 +23,7 @@
 
     <modules>
         <module>..</module>
-        <module>../level-1-cache-aside</module>
+        <module>../level-1-cache-aside/java</module>
     </modules>
 
     <properties>

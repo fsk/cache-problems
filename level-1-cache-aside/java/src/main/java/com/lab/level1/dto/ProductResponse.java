@@ -11,4 +11,8 @@ public record ProductResponse(
         int popularityScore,
         Instant updatedAt,
         String servedFrom
-) {}
+) {
+    public ProductResponse withServedFrom(String source) {
+        return new ProductResponse(id, name, sku, price, popularityScore, updatedAt, source);
+    }
+}

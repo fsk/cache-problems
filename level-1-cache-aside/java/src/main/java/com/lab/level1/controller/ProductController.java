@@ -2,7 +2,7 @@ package com.lab.level1.controller;
 
 import com.lab.level1.dto.ApiResponse;
 import com.lab.level1.dto.ProductResponse;
-import com.lab.level1.service.ProductCacheAsideService;
+import com.lab.level1.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class ProductController {
 
-    private final ProductCacheAsideService productService;
+    private final ProductService productService;
 
 
     @GetMapping("/{id}")

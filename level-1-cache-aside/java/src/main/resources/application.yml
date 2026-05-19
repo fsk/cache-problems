@@ -4,6 +4,9 @@ server:
 spring:
   application:
     name: level-1-cache-aside
+  output:
+    ansi:
+      enabled: always
   datasource:
     url: jdbc:postgresql://localhost:5433/lab
     username: lab
@@ -19,6 +22,8 @@ spring:
     redis:
       host: localhost
       port: 6380
+  cache:
+    type: redis
 
 level1:
   cache:
@@ -30,5 +35,3 @@ level1:
 logging:
   level:
     com.lab.level1: INFO
-  pattern:
-    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

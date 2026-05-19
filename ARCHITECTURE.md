@@ -29,7 +29,7 @@ cache-problems/                    ← BASE MODULE (repo kökü, artifact: cache
 
 | Level | Uygulama portu | Redis | PostgreSQL |
 |-------|----------------|-------|------------|
-| level-1-cache-aside | 8101 | 6380 | 5433 |
+| level-1-cache-aside (`java/`) | 8101 | 6380 | 5433 |
 | level-2-cache-invalidation | 8102 | 6381 | 5434 |
 | level-3-cache-stampede | 8103 | 6382 | 5435 |
 | level-4-hot-key | 8104 | 6383 | 5436 |

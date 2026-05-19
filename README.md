@@ -9,7 +9,7 @@ cache-problems/              ← BASE MODULE (Redis, JPA, cache abstraction, src
 ├── src/
 ├── docker/
 ├── lab-reactor/             ← Maven reactor (tüm modülleri derler)
-├── level-1-cache-aside/
+├── level-1-cache-aside/       (java/ + python/)
 ├── level-2-cache-invalidation/
 ├── …
 └── load-test-scripts/

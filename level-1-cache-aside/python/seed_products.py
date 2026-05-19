@@ -3,8 +3,9 @@
 Seed products into level-1 PostgreSQL.
 
 Usage:
-  python scripts/seed_products.py --count 10000
-  python scripts/seed_products.py --count 1000 --host localhost --port 5433
+  cd level-1-cache-aside/python
+  python seed_products.py --count 10000
+  python seed_products.py --count 1000 --host localhost --port 5433
 """
 
 from __future__ import annotations
